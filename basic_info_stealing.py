@@ -1,5 +1,6 @@
 import os
 import requests
+import time
 
 ### VARIABLES
 
@@ -18,9 +19,9 @@ data = {
 
 def boot_up(paramchecker, paramidentifier):
     if paramchecker == paramidentifier:
-        os.sleep(1000)
+        time.sleep(10)
     else:
-        os.sleep(1000)
+        time.sleep(10)
 
 
 
