@@ -1,5 +1,5 @@
-# MalwareGeneration
-Creating malware from scratch to understand how it works
+# STIMULATED APT FOR SECURITY 
+Simulated Advanced Persistent Threat (APT) for security flaw detection and mitigation
 
 
 # Information
