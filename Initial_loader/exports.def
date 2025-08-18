@@ -1,0 +1,6 @@
+LIBRARY RED
+EXPORTS
+    ImageNtHeader
+    MiniDumpWriteDump=stub_MiniDumpWriteDump
+    SymInitialize=stub_SymInitialize
+    SymCleanup=stub_SymCleanup
