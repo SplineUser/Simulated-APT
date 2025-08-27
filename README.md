@@ -5,7 +5,6 @@ Simulated Advanced Persistent Threat (APT) for security flaw detection and mitig
 # Information
 This github repo will display snippets of the work we have done.
 
-We wont post any 0-days that are have not been patched
 
 
 
